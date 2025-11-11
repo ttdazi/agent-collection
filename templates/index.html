@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>笑话Agent - 可扩展架构</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 { 
+            color: #667eea; 
+            margin-bottom: 20px; 
+            text-align: center; 
+            font-size: 2em;
+        }
+        .model-selector {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .model-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+        .model-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            background: white;
+        }
+        .joke-box {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            min-height: 150px;
+            border: 2px dashed #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .joke-text {
+            font-size: 1.2em;
+            line-height: 1.8;
+            color: #333;
+            text-align: center;
+        }
+        .joke-text.loading {
+            color: #999;
+            font-style: italic;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>😄 笑话Agent</h1>
+        
+        <div class="model-selector">
+            <label>选择模型：</label>
+            <select id="modelSelect">
+                <option value="ollama">Ollama (本地免费)</option>
+                <option value="gemini">Google Gemini (免费额度)</option>
+            </select>
+        </div>
+        
+        <div class="joke-box">
+            <div class="joke-text" id="jokeText">点击按钮，让我给你讲个笑话吧！</div>
+        </div>
+        
+        <button class="btn" id="getJokeBtn" onclick="getJoke()">🎭 讲个笑话</button>
+        <div class="status" id="status">当前模型: <span id="currentModel">加载中...</span></div>
+    </div>
+
+    <script>
+        let currentModel = 'ollama';
+        
+        // 加载当前配置
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                currentModel = data.model_type;
+                document.getElementById('modelSelect').value = currentModel;
+                document.getElementById('currentModel').textContent = currentModel;
+            } catch (e) {
+                console.error('加载配置失败:', e);
+                document.getElementById('currentModel').textContent = '加载失败';
+            }
+        }
+        
+        // 切换模型
+        document.getElementById('modelSelect').addEventListener('change', async (e) => {
+            const newModel = e.target.value;
+            const selectElement = e.target;
+            
+            // 禁用选择框
+            selectElement.disabled = true;
+            
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_type: newModel })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentModel = newModel;
+                    document.getElementById('currentModel').textContent = newModel;
+                    alert(`已切换到 ${newModel}`);
+                } else {
+                    alert(`切换失败: ${data.error}`);
+                    selectElement.value = currentModel; // 恢复原值
+                }
+            } catch (e) {
+                alert(`切换失败: ${e.message}`);
+                selectElement.value = currentModel;
+            } finally {
+                selectElement.disabled = false;
+            }
+        });
+        
+        // 获取笑话
+        async function getJoke() {
+            const jokeText = document.getElementById('jokeText');
+            const btn = document.getElementById('getJokeBtn');
+            
+            btn.disabled = true;
+            jokeText.textContent = '正在思考中... 🤔';
+            jokeText.className = 'joke-text loading';
+            
+            try {
+                const res = await fetch('/api/joke', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: '讲个笑话' })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    jokeText.textContent = data.joke;
+                    jokeText.className = 'joke-text fade-in';
+                } else {
+                    jokeText.textContent = `错误: ${data.error || data.joke}`;
+                    jokeText.className = 'joke-text';
+                }
+            } catch (e) {
+                jokeText.textContent = `网络错误: ${e.message}`;
+                jokeText.className = 'joke-text';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        // 初始化
+        window.addEventListener('load', () => {
+            loadConfig();
+        });
+    </script>
+</body>
+</html>
+

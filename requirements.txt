@@ -1,0 +1,7 @@
+Flask==2.2.5
+flask-cors==4.0.0
+langchain==0.0.350
+langchain-community==0.0.20
+langchain-google-genai==0.0.8
+requests==2.31.0
+
