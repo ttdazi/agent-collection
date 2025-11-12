@@ -66,7 +66,10 @@ helloAgent/
 ├── core/                     # 核心模块
 │   ├── __init__.py
 │   ├── agent_factory.py     # Agent工厂
-│   └── model_provider.py    # 模型提供者抽象基类
+│   ├── model_provider.py    # 模型提供者抽象基类
+│   └── llm_logger.py        # LLM交互日志记录器
+├── logs/                     # 日志目录（自动创建）
+│   └── llm_interactions.log # LLM交互日志文件
 ├── providers/                # 模型提供者实现
 │   ├── __init__.py
 │   ├── ollama_provider.py   # Ollama模型提供者
@@ -111,6 +114,26 @@ Content-Type: application/json
     "model_type": "gemini"
 }
 ```
+
+### 日志配置
+
+LLM交互日志默认保存到文件，控制台不显示详细内容：
+
+编辑 `config.py`：
+
+```python
+"logging": {
+    "llm_console_output": False,  # True=控制台显示详细日志，False=仅保存到文件
+    "llm_log_file": "logs/llm_interactions.log",  # 日志文件路径
+    "log_level": "INFO",  # 日志级别
+}
+```
+
+**日志文件位置：** `logs/llm_interactions.log`
+
+- 默认：控制台只显示简要信息，详细日志保存到文件
+- 开启控制台输出：设置 `llm_console_output: True` 可同时在控制台查看详细日志
+- 日志文件包含完整的Prompt和Response内容，便于调试和分析
 
 ## API接口
 

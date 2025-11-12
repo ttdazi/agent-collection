@@ -31,6 +31,13 @@ DEFAULT_CONFIG = {
         "agent_type": "zero-shot-react-description",  # 可以改为其他类型
         "verbose": True,
         "max_iterations": 5,
+    },
+    
+    # 日志配置
+    "logging": {
+        "llm_console_output": False,  # 是否在控制台显示LLM详细日志（False=只保存到文件）
+        "llm_log_file": "logs/llm_interactions.log",  # LLM交互日志文件路径
+        "log_level": "INFO",  # 日志级别：DEBUG, INFO, WARNING, ERROR
     }
 }
 

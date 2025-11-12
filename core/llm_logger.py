@@ -1,0 +1,152 @@
+"""
+LLM交互日志记录器 - 记录每次LLM的询问和回答
+"""
+from langchain.callbacks.base import BaseCallbackHandler
+from typing import Any, Dict, List
+import sys
+import os
+from datetime import datetime
+import config
+
+class LLMLogger(BaseCallbackHandler):
+    """LLM交互日志记录器"""
+    
+    def __init__(self):
+        super().__init__()
+        self.call_count = 0
+        
+        # 从配置读取日志设置
+        log_config = config.DEFAULT_CONFIG.get("logging", {})
+        self.console_output = log_config.get("llm_console_output", False)
+        self.log_file = log_config.get("llm_log_file", "logs/llm_interactions.log")
+        
+        # 确保日志目录存在
+        log_dir = os.path.dirname(self.log_file)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+        
+        # 初始化日志文件（追加模式）
+        self._write_to_file("="*80)
+        self._write_to_file(f"LLM交互日志 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self._write_to_file("="*80 + "\n")
+        
+        if self.console_output:
+            print("✅ LLMLogger初始化完成（控制台+文件）")
+        else:
+            print("✅ LLMLogger初始化完成（仅保存到文件）")
+    
+    def _write_to_file(self, content: str):
+        """写入日志到文件"""
+        try:
+            with open(self.log_file, 'a', encoding='utf-8') as f:
+                f.write(content + '\n')
+        except Exception as e:
+            print(f"⚠️ 写入日志文件失败: {e}")
+    
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
+        """LLM开始调用时触发"""
+        self.call_count += 1
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 获取完整prompt
+        prompt = prompts[0] if prompts else ""
+        
+        # 控制台显示（如果启用）：简要信息
+        if self.console_output:
+            print(f"\n🤖 LLM调用 #{self.call_count} - {timestamp}")
+            print(f"📤 Prompt长度: {len(prompt)} 字符")
+            if len(prompt) > 500:
+                print(f"   (完整内容已保存到文件)")
+            else:
+                print(f"   {prompt[:200]}...")
+            sys.stdout.flush()
+        
+        # 文件保存：完整内容
+        self._write_to_file("\n" + "="*80)
+        self._write_to_file(f"🤖 LLM调用 #{self.call_count} - {timestamp}")
+        self._write_to_file("="*80)
+        self._write_to_file(f"\n📤 发送给LLM的Prompt:")
+        self._write_to_file(f"长度: {len(prompt)} 字符")
+        self._write_to_file("-"*80)
+        self._write_to_file(prompt)  # 完整保存
+        self._write_to_file("-"*80)
+    
+    def on_llm_end(self, response, **kwargs: Any) -> None:
+        """LLM调用结束时触发"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 提取响应文本（兼容不同版本的LangChain）
+        text = None
+        
+        # 尝试多种方式提取文本
+        if hasattr(response, 'generations') and response.generations:
+            for gen_list in response.generations:
+                for gen in gen_list:
+                    if hasattr(gen, 'text'):
+                        text = gen.text
+                        break
+                    elif hasattr(gen, 'message') and hasattr(gen.message, 'content'):
+                        text = gen.message.content
+                        break
+                if text:
+                    break
+        elif hasattr(response, 'text'):
+            text = response.text
+        elif hasattr(response, 'content'):
+            text = response.content
+        elif isinstance(response, str):
+            text = response
+        elif hasattr(response, '__dict__'):
+            # 尝试从字典中提取
+            if 'text' in response.__dict__:
+                text = response.__dict__['text']
+            elif 'content' in response.__dict__:
+                text = response.__dict__['content']
+        
+        # 控制台显示（如果启用）：简要信息
+        if self.console_output:
+            if text:
+                print(f"📥 响应长度: {len(text)} 字符")
+                if len(text) > 200:
+                    print(f"   预览: {text[:200]}...")
+                    print(f"   (完整内容已保存到文件)")
+                else:
+                    print(f"   {text}")
+            else:
+                print(f"📥 响应: {str(response)[:200]}...")
+            print("="*80 + "\n")
+            sys.stdout.flush()
+        
+        # 文件保存：完整内容
+        self._write_to_file(f"\n📥 LLM返回的响应:")
+        self._write_to_file(f"时间: {timestamp}")
+        if text:
+            self._write_to_file(f"长度: {len(text)} 字符")
+            self._write_to_file("-"*80)
+            self._write_to_file(text)  # 完整保存
+        else:
+            self._write_to_file("-"*80)
+            self._write_to_file(str(response))  # 完整保存
+        self._write_to_file("-"*80)
+        self._write_to_file("="*80 + "\n")
+    
+    def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
+        """LLM调用出错时触发"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        error_msg = str(error)
+        
+        # 控制台显示（如果启用）：简要错误信息
+        if self.console_output:
+            print(f"\n❌ LLM调用 #{self.call_count} 出错 - {timestamp}")
+            print(f"   错误: {error_msg[:200]}...")
+            print("   (完整错误信息已保存到文件)")
+            print("="*80 + "\n")
+            sys.stdout.flush()
+        
+        # 文件保存：完整错误信息
+        self._write_to_file("\n" + "="*80)
+        self._write_to_file(f"❌ LLM调用出错 (#{self.call_count}) - {timestamp}")
+        self._write_to_file("-"*80)
+        self._write_to_file(error_msg)
+        self._write_to_file("="*80 + "\n")
+

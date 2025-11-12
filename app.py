@@ -51,8 +51,25 @@ def get_joke():
         # 底层流程：
         # - Ollama: HTTP POST -> http://localhost:11434/api/generate
         # - Gemini: REST API -> https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+        # 
+        # 注意：每次LLM调用都会通过LLMLogger回调打印详细的询问和回答
         # ====================================
-        res = agent.invoke({"input": user_input})
+        # 从配置读取是否显示简要信息
+        log_config = config.DEFAULT_CONFIG.get("logging", {})
+        show_brief = log_config.get("llm_console_output", False)
+        
+        if show_brief:
+            print(f"\n🎯 用户输入: {user_input}")
+            print("🚀 开始Agent处理...\n")
+        
+        # 创建LLM日志记录器并在invoke时传递
+        from core.llm_logger import LLMLogger
+        llm_logger = LLMLogger()
+        
+        res = agent.invoke(
+            {"input": user_input},
+            config={"callbacks": [llm_logger]}  # 在invoke时传递callbacks
+        )
         response = res.get("output", res if isinstance(res, str) else str(res))
         
         return jsonify({
@@ -113,15 +130,22 @@ if __name__ == '__main__':
     print("💡 可以通过 /api/config 接口切换模型")
     print("📱 打开浏览器访问: http://localhost:5000")
     
-    # 自动打开浏览器
+    # 自动打开浏览器（只在主进程中打开，避免reloader重复打开）
     import webbrowser
     import threading
-    def open_browser():
-        import time
-        time.sleep(1.5)  # 等待服务启动
-        webbrowser.open('http://localhost:5000')
+    import os
     
-    threading.Thread(target=open_browser, daemon=True).start()
+    # Flask debug模式会启动两个进程：主进程和reloader监控进程
+    # 通过环境变量检测是否是reloader进程，只在主进程中打开浏览器
+    is_reloader = os.environ.get('WERKZEUG_RUN_MAIN') != 'true'
+    
+    if not is_reloader:  # 只在主进程中打开浏览器
+        def open_browser():
+            import time
+            time.sleep(1.5)  # 等待服务启动
+            webbrowser.open('http://localhost:5000')
+        
+        threading.Thread(target=open_browser, daemon=True).start()
     
     app.run(debug=True, host='0.0.0.0', port=5000)
 
