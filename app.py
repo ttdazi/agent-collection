@@ -39,7 +39,19 @@ def get_joke():
         data = request.json
         user_input = data.get('input', '讲个笑话')
         
-        # 使用Agent处理（使用invoke以避免run的弃用与解析边界问题）
+        # ========== LLM调用核心部分 ==========
+        # 使用Agent处理用户输入，这里会触发LLM推理
+        # agent.invoke() 会：
+        # 1. 将用户输入传递给LLM（Ollama或Gemini）
+        # 2. LLM根据工具描述决定调用哪个工具
+        # 3. 执行工具（获取笑话）
+        # 4. 将工具结果返回给LLM生成最终回复
+        # 5. 返回Agent的完整响应
+        # 
+        # 底层流程：
+        # - Ollama: HTTP POST -> http://localhost:11434/api/generate
+        # - Gemini: REST API -> https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+        # ====================================
         res = agent.invoke({"input": user_input})
         response = res.get("output", res if isinstance(res, str) else str(res))
         
@@ -100,5 +112,16 @@ if __name__ == '__main__':
     print(f"📦 当前模型: {config.DEFAULT_CONFIG['model_type']}")
     print("💡 可以通过 /api/config 接口切换模型")
     print("📱 打开浏览器访问: http://localhost:5000")
+    
+    # 自动打开浏览器
+    import webbrowser
+    import threading
+    def open_browser():
+        import time
+        time.sleep(1.5)  # 等待服务启动
+        webbrowser.open('http://localhost:5000')
+    
+    threading.Thread(target=open_browser, daemon=True).start()
+    
     app.run(debug=True, host='0.0.0.0', port=5000)
 
