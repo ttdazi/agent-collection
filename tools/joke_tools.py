@@ -38,12 +38,25 @@ def get_joke_tools():
         Tool(
             name="GetRandomJoke",
             func=get_random_joke,
-            description="获取一个随机笑话。当用户要求讲笑话时使用此工具。Action Input可以是任意字符串，如'ok'或'joke'。"
+            description=(
+                "获取一个随机笑话。当用户要求讲笑话时使用此工具。\n"
+                "使用格式：\n"
+                "Action: GetRandomJoke\n"
+                "Action Input: joke\n"
+                "注意：Action Input可以是任意字符串，如'joke'、'ok'等。"
+            )
         ),
         Tool(
             name="SearchJoke",
             func=search_joke_by_keyword,
-            description="根据关键词搜索笑话。当用户指定了特定主题时使用此工具。Action Input应该是单个关键词，如'程序员'、'Python'、'bug'等。"
+            description=(
+                "根据关键词搜索笑话。当用户指定了特定主题时使用此工具。\n"
+                "使用格式：\n"
+                "Action: SearchJoke\n"
+                "Action Input: [关键词]\n"
+                "示例：Action Input: 程序员\n"
+                "注意：Action Input应该是单个关键词，如'程序员'、'Python'、'bug'等。"
+            )
         ),
     ]
     # 自动注册到工具注册表
