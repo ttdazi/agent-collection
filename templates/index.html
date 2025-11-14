@@ -332,18 +332,21 @@
             jokeText.className = 'joke-text loading';
             
             try {
-                const res = await fetch('/api/joke', {
+                const res = await fetch('/api/agent/invoke', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ input: '讲个笑话' })
+                    body: JSON.stringify({ 
+                        agent_name: 'joke',
+                        input: '讲个笑话' 
+                    })
                 });
                 const data = await res.json();
                 
                 if (data.success) {
-                    jokeText.textContent = data.joke;
+                    jokeText.textContent = data.output;
                     jokeText.className = 'joke-text fade-in';
                 } else {
-                    jokeText.textContent = `错误: ${data.error || data.joke}`;
+                    jokeText.textContent = `错误: ${data.error || data.output}`;
                     jokeText.className = 'joke-text';
                 }
             } catch (e) {

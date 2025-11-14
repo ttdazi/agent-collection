@@ -5,16 +5,17 @@ from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass
 from langchain.agents import AgentType
 
+
 @dataclass
 class AgentDefinition:
     """Agent定义"""
-    name: str  # Agent名称（唯一标识）
-    display_name: str  # 显示名称
-    description: str  # Agent描述
-    tool_groups: List[str]  # 使用的工具组列表
-    agent_type: AgentType  # LangChain Agent类型
-    default_config: Dict[str, Any]  # 默认配置
-    handler_func: Optional[Callable] = None  # 自定义处理函数（可选）
+    name: str
+    display_name: str
+    description: str
+    tool_groups: List[str]
+    agent_type: AgentType
+    default_config: Dict[str, Any]
+    handler_func: Optional[Callable] = None
 
 
 class AgentRegistry:
@@ -29,15 +30,9 @@ class AgentRegistry:
         return cls._instance
     
     def register_agent(self, definition: AgentDefinition) -> None:
-        """
-        注册Agent定义
-        
-        Args:
-            definition: Agent定义
-        """
+        """注册Agent定义"""
         if definition.name in self._agents:
             print(f"⚠️ 警告: Agent '{definition.name}' 已存在，将被覆盖")
-        
         self._agents[definition.name] = definition
     
     def get_agent_definition(self, name: str) -> Optional[AgentDefinition]:
@@ -64,43 +59,4 @@ class AgentRegistry:
         self._agents.clear()
 
 
-# 全局Agent注册表实例
 agent_registry = AgentRegistry()
-
-
-def register_agent(
-    name: str,
-    display_name: str,
-    description: str,
-    tool_groups: List[str],
-    agent_type: AgentType = AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    default_config: Dict[str, Any] = None
-):
-    """
-    Agent注册装饰器
-    
-    使用示例:
-        @register_agent(
-            name="joke",
-            display_name="笑话Agent",
-            description="讲笑话的Agent",
-            tool_groups=["joke"],
-            agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION
-        )
-        class JokeAgent:
-            ...
-    """
-    def decorator(cls_or_func):
-        definition = AgentDefinition(
-            name=name,
-            display_name=display_name,
-            description=description,
-            tool_groups=tool_groups,
-            agent_type=agent_type,
-            default_config=default_config or {},
-            handler_func=cls_or_func if callable(cls_or_func) else None
-        )
-        agent_registry.register_agent(definition)
-        return cls_or_func
-    return decorator
-
