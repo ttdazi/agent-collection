@@ -2,7 +2,7 @@
 工具注册表 - 管理所有可用工具
 """
 from typing import Dict, List, Optional
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 
 
 class ToolRegistry:

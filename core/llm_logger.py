@@ -1,7 +1,7 @@
 """
-LLM交互日志记录器 - 记录每次LLM的询问和回答
+LLM交互日志记录器 - 记录每次ChatModel的询问和回答
 """
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.callbacks import BaseCallbackHandler
 from typing import Any, Dict, List
 import sys
 import os
@@ -9,7 +9,7 @@ from datetime import datetime
 import config
 
 class LLMLogger(BaseCallbackHandler):
-    """LLM交互日志记录器"""
+    """LLM交互日志记录器（支持ChatModel）"""
     
     def __init__(self):
         super().__init__()
@@ -43,67 +43,58 @@ class LLMLogger(BaseCallbackHandler):
         except Exception as e:
             print(f"⚠️ 写入日志文件失败: {e}")
     
-    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
-        """LLM开始调用时触发"""
+    def on_chat_model_start(self, serialized: Dict[str, Any], messages: List, **kwargs: Any) -> None:
+        """ChatModel开始调用时触发（新API）"""
         self.call_count += 1
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # 获取完整prompt
-        prompt = prompts[0] if prompts else ""
+        # 格式化messages
+        prompt = "\n".join([str(msg) for msg in messages])
         
-        # 控制台显示（如果启用）：简要信息
+        # 控制台显示（如果启用）
         if self.console_output:
-            print(f"\n🤖 LLM调用 #{self.call_count} - {timestamp}")
-            print(f"📤 Prompt长度: {len(prompt)} 字符")
+            print(f"\n🤖 ChatModel调用 #{self.call_count} - {timestamp}")
+            print(f"📤 Messages数量: {len(messages)}")
+            print(f"📤 总长度: {len(prompt)} 字符")
             if len(prompt) > 500:
                 print(f"   (完整内容已保存到文件)")
             else:
                 print(f"   {prompt[:200]}...")
             sys.stdout.flush()
         
-        # 文件保存：完整内容
+        # 文件保存
         self._write_to_file("\n" + "="*80)
-        self._write_to_file(f"🤖 LLM调用 #{self.call_count} - {timestamp}")
+        self._write_to_file(f"🤖 ChatModel调用 #{self.call_count} - {timestamp}")
         self._write_to_file("="*80)
-        self._write_to_file(f"\n📤 发送给LLM的Prompt:")
-        self._write_to_file(f"长度: {len(prompt)} 字符")
+        self._write_to_file(f"\n📤 发送给ChatModel的Messages:")
+        self._write_to_file(f"数量: {len(messages)}")
+        self._write_to_file(f"总长度: {len(prompt)} 字符")
         self._write_to_file("-"*80)
-        self._write_to_file(prompt)  # 完整保存
+        self._write_to_file(prompt)
         self._write_to_file("-"*80)
     
-    def on_llm_end(self, response, **kwargs: Any) -> None:
-        """LLM调用结束时触发"""
+    def on_chat_model_end(self, response, **kwargs: Any) -> None:
+        """ChatModel调用结束时触发（新API）"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # 提取响应文本（兼容不同版本的LangChain）
+        # 提取响应文本
         text = None
-        
-        # 尝试多种方式提取文本
         if hasattr(response, 'generations') and response.generations:
             for gen_list in response.generations:
                 for gen in gen_list:
-                    if hasattr(gen, 'text'):
-                        text = gen.text
-                        break
-                    elif hasattr(gen, 'message') and hasattr(gen.message, 'content'):
+                    if hasattr(gen, 'message') and hasattr(gen.message, 'content'):
                         text = gen.message.content
                         break
                 if text:
                     break
-        elif hasattr(response, 'text'):
-            text = response.text
         elif hasattr(response, 'content'):
             text = response.content
-        elif isinstance(response, str):
-            text = response
-        elif hasattr(response, '__dict__'):
-            # 尝试从字典中提取
-            if 'text' in response.__dict__:
-                text = response.__dict__['text']
-            elif 'content' in response.__dict__:
-                text = response.__dict__['content']
         
-        # 控制台显示（如果启用）：简要信息
+        self._log_response(timestamp, text, response)
+    
+    def _log_response(self, timestamp: str, text: str, response: Any) -> None:
+        """记录响应的通用方法"""
+        # 控制台显示（如果启用）
         if self.console_output:
             if text:
                 print(f"📥 响应长度: {len(text)} 字符")
@@ -117,21 +108,21 @@ class LLMLogger(BaseCallbackHandler):
             print("="*80 + "\n")
             sys.stdout.flush()
         
-        # 文件保存：完整内容
+        # 文件保存
         self._write_to_file(f"\n📥 LLM返回的响应:")
         self._write_to_file(f"时间: {timestamp}")
         if text:
             self._write_to_file(f"长度: {len(text)} 字符")
             self._write_to_file("-"*80)
-            self._write_to_file(text)  # 完整保存
+            self._write_to_file(text)
         else:
             self._write_to_file("-"*80)
-            self._write_to_file(str(response))  # 完整保存
+            self._write_to_file(str(response))
         self._write_to_file("-"*80)
         self._write_to_file("="*80 + "\n")
     
-    def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
-        """LLM调用出错时触发"""
+    def on_chat_model_error(self, error: Exception, **kwargs: Any) -> None:
+        """ChatModel调用出错时触发"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         error_msg = str(error)
         

@@ -17,8 +17,8 @@ agents/
 
 **特点**：
 - 统一的Agent接口（BaseAgent）
-- 每个Agent可以有自己的工具集
-- 支持不同的LangChain Agent类型
+- 每个Agent可以有自己的工具集和中文系统提示词
+- 使用LangChain 1.0+的`create_agent` API
 
 ### 2. 工具系统
 
@@ -41,9 +41,10 @@ providers/
 ```
 
 **特点**：
-- 统一的Provider接口
+- 统一的Provider接口（返回ChatModel）
 - 易于添加新模型
 - 配置验证机制
+- 支持Ollama（本地）和Gemini（云端）
 
 ### 4. 核心服务
 
@@ -104,7 +105,7 @@ AgentFactory (创建Agent)
   ↓
 Agent实例 (JokeAgent等)
   ↓
-LLM (Ollama/Gemini)
+ChatModel (ChatOllama/ChatGoogleGenerativeAI)
   ↓
 工具执行 (joke_tools等)
   ↓
@@ -118,11 +119,18 @@ LLM (Ollama/Gemini)
 3. **依赖注入**：通过注册表管理依赖
 4. **接口抽象**：使用抽象基类定义接口
 
+## 技术栈
+
+- **LangChain 1.0+**: 使用最新的 `create_agent` API
+- **ChatModel**: 统一使用ChatModel接口
+- **中文Prompt**: 支持中文系统提示词
+- **Flask**: Web框架
+
 ## 扩展点
 
-1. **添加新Agent**：继承BaseAgent，注册到AgentRegistry
+1. **添加新Agent**：继承BaseAgent，使用`create_agent` API，注册到AgentRegistry
 2. **添加新工具**：创建工具函数，注册到ToolRegistry
-3. **添加新模型**：实现ModelProvider接口，注册到AgentFactory
+3. **添加新模型**：实现ModelProvider接口，返回ChatModel实例，注册到AgentFactory
 
 ## 相关文档
 

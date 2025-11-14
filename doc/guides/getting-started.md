@@ -8,6 +8,13 @@
 pip install -r requirements.txt
 ```
 
+**依赖版本**：
+- LangChain 1.0+ (使用最新的 `create_agent` API)
+- LangChain Community 0.4+
+- LangChain Google GenAI 3.0+
+- LangChain Ollama 1.0+
+- Flask 2.2.5
+
 ### 2. 配置Ollama（默认模型）
 
 确保已安装Ollama并下载模型：

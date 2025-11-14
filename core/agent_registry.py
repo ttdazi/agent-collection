@@ -3,7 +3,6 @@ Agent注册表 - 管理所有Agent类型定义
 """
 from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass
-from langchain.agents import AgentType
 
 
 @dataclass
@@ -13,9 +12,12 @@ class AgentDefinition:
     display_name: str
     description: str
     tool_groups: List[str]
-    agent_type: AgentType
-    default_config: Dict[str, Any]
+    default_config: Dict[str, Any] = None
     handler_func: Optional[Callable] = None
+    
+    def __post_init__(self):
+        if self.default_config is None:
+            self.default_config = {}
 
 
 class AgentRegistry:

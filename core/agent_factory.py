@@ -1,7 +1,6 @@
 """
 Agent工厂 - 创建不同类型的Agent
 """
-from langchain.agents import AgentType
 from core.agent_registry import agent_registry, AgentDefinition
 from core.tool_registry import tool_registry
 from agents.base_agent import BaseAgent
@@ -43,7 +42,6 @@ class AgentFactory:
                 display_name="笑话Agent",
                 description="专门用于讲笑话的Agent",
                 tool_groups=["joke"],
-                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                 default_config={"verbose": True, "max_iterations": 5}
             )
             agent_registry.register_agent(agent_def)
@@ -95,7 +93,6 @@ class AgentFactory:
             name=agent_name,
             tools=tools,
             llm=llm,
-            agent_type=agent_def.agent_type,
             config=agent_config
         )
     

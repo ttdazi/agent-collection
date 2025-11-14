@@ -8,18 +8,13 @@
 doc/
 ├── README.md                    # 本文档（文档索引）
 ├── CHANGELOG.md                 # 更新日志
-├── optimization-summary.md      # 优化总结
-├── architecture/                # 架构相关文档
+├── architecture/                # 架构文档
 │   ├── overview.md             # 架构概览
-│   ├── optimization.md         # 架构优化说明
-│   ├── analysis.md             # 架构分析（历史）
-│   └── optimization-summary.md # 架构优化总结（历史）
+│   └── optimization.md         # 架构优化说明
 ├── guides/                      # 使用指南
 │   ├── getting-started.md      # 快速开始
 │   ├── extension.md            # 扩展指南
-│   ├── troubleshooting.md      # 故障排除
-│   ├── how-to-extend.md        # 扩展指南（详细版）
-│   └── log-analysis.md         # 日志分析
+│   └── troubleshooting.md      # 故障排除
 └── api/                         # API文档
     └── reference.md             # API参考
 ```

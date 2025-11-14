@@ -1,53 +1,43 @@
 """
 笑话Agent - 专门用于讲笑话的Agent
 """
-from langchain.agents import initialize_agent, AgentExecutor
+from langchain.agents import create_agent
 from agents.base_agent import BaseAgent
 
 
 class JokeAgent(BaseAgent):
     """笑话Agent"""
     
-    def create_agent_executor(self) -> AgentExecutor:
-        """创建笑话Agent执行器"""
-        def handle_parsing_error(error):
-            """处理Agent输出解析错误，提供更清晰的格式指导"""
-            error_str = str(error)
-            
-            # 如果缺少Action Input，提供完整的格式示例
-            if "Missing 'Action Input:'" in error_str or "Action Input" in error_str:
-                return (
-                    "我需要使用正确的ReAct格式。格式应该是：\n"
-                    "Thought: [我的思考过程]\n"
-                    "Action: [工具名称]\n"
-                    "Action Input: [工具输入]\n\n"
-                    "例如：\n"
-                    "Thought: 用户要求讲笑话，我应该使用GetRandomJoke工具。\n"
-                    "Action: GetRandomJoke\n"
-                    "Action Input: joke"
-                )
-            
-            # 如果只是格式错误，提供通用指导
-            if "Could not parse" in error_str:
-                return (
-                    "输出格式不正确。请使用以下格式：\n"
-                    "Thought: [思考]\n"
-                    "Action: [工具名]\n"
-                    "Action Input: [输入]\n"
-                    "Observation: [观察结果]\n"
-                    "Final Answer: [最终答案]"
-                )
-            
-            return f"格式错误，请重试。错误: {error_str}"
+    def create_agent_executor(self):
+        """创建笑话Agent执行器（使用新的create_agent API）"""
+        # 中文系统提示词
+        system_prompt = """你是一个专门讲笑话的智能助手。
+
+重要规则：
+1. 当用户要求讲笑话时，你必须使用工具（GetRandomJoke或SearchJoke）来获取笑话
+2. 不能自己编造笑话，必须通过工具获取
+3. 严格按照ReAct格式思考和行动
+
+可用工具：
+- GetRandomJoke: 获取一个随机笑话
+- SearchJoke: 根据关键词搜索笑话
+
+使用格式：
+思考: [你的思考过程]
+行动: [工具名称]
+行动输入: [工具输入]
+观察: [工具返回的结果]
+... (可以重复多次)
+思考: 我现在知道最终答案了
+最终答案: [对用户的最终回复]
+
+请始终使用工具来获取笑话，不要直接编造答案。"""
         
-        # 注意：initialize_agent 在 LangChain 0.1.0+ 中已弃用
-        # 但为了兼容性，我们继续使用它，直到升级到支持新API的版本
-        return initialize_agent(
+        # 使用新的create_agent API
+        agent = create_agent(
+            model=self.llm,
             tools=self.tools,
-            llm=self.llm,
-            agent=self.agent_type,
-            verbose=self.config.get("verbose", True),
-            max_iterations=self.config.get("max_iterations", 5),
-            handle_parsing_errors=handle_parsing_error,
-            max_execution_time=None,  # 不限制执行时间
+            system_prompt=system_prompt,
         )
+        
+        return agent

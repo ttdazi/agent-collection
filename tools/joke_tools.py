@@ -1,7 +1,7 @@
 """
 笑话相关工具 - 可以轻松添加新工具
 """
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 from core.tool_registry import tool_registry
 import random
 
@@ -39,6 +39,7 @@ def get_joke_tools():
             name="GetRandomJoke",
             func=get_random_joke,
             description=(
+                "⚠️ 重要：当用户要求讲笑话时，你必须使用此工具来获取笑话，不能自己编造。\n"
                 "获取一个随机笑话。当用户要求讲笑话时使用此工具。\n"
                 "使用格式：\n"
                 "Action: GetRandomJoke\n"

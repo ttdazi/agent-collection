@@ -9,25 +9,22 @@
 在 `agents/` 目录创建新文件，例如 `code_agent.py`：
 
 ```python
-from langchain.agents import initialize_agent, AgentExecutor
+from langchain.agents import create_agent
 from agents.base_agent import BaseAgent
 
 class CodeAgent(BaseAgent):
     """代码分析Agent"""
     
-    def create_agent_executor(self) -> AgentExecutor:
-        """创建代码Agent执行器"""
-        def handle_parsing_error(error):
-            error_str = str(error)
-            return f"代码分析出错，请重试。错误: {error_str}"
+    def create_agent_executor(self):
+        """创建代码Agent执行器（使用create_agent API）"""
+        system_prompt = """你是一个代码分析助手。
+当用户要求分析代码时，你必须使用工具来执行分析。
+不能直接编造答案，必须通过工具获取结果。"""
         
-        return initialize_agent(
+        return create_agent(
+            model=self.llm,
             tools=self.tools,
-            llm=self.llm,
-            agent=self.agent_type,
-            verbose=self.config.get("verbose", True),
-            max_iterations=self.config.get("max_iterations", 10),
-            handle_parsing_errors=handle_parsing_error,
+            system_prompt=system_prompt,
         )
 ```
 
@@ -55,7 +52,7 @@ if "code" not in agent_registry.list_agents():
         display_name="代码分析Agent",
         description="用于代码分析、生成和审查的Agent",
         tool_groups=["code"],  # 指定使用的工具组
-        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        agent_type=None,  # 新API不再需要AgentType
         default_config={"verbose": True, "max_iterations": 10}
     )
     agent_registry.register_agent(agent_def)
@@ -72,7 +69,7 @@ if "code" not in agent_registry.list_agents():
 在 `tools/` 目录创建新文件，例如 `code_tools.py`：
 
 ```python
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 from core.tool_registry import tool_registry
 
 def analyze_code(code: str) -> str:
@@ -126,7 +123,7 @@ class OpenAIProvider(ModelProvider):
     """OpenAI模型提供者"""
     
     def get_llm(self, config: Dict[str, Any]):
-        """创建OpenAI LLM实例"""
+        """创建OpenAI ChatModel实例"""
         api_key = config.get("api_key")
         if not api_key:
             raise ValueError("OpenAI API key未设置")
