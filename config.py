@@ -12,6 +12,9 @@ DEFAULT_CONFIG = {
     # 当前使用的模型类型
     "model_type": os.getenv("MODEL_TYPE", "ollama"),  # 可以改为 "gemini"
     
+    # 默认Agent类型
+    "default_agent": os.getenv("DEFAULT_AGENT", "joke"),  # 可以改为其他Agent类型
+    
     # Ollama配置
     "ollama": {
         "model": "qwen2.5:1.5b",  # 可以改为 "llama3.2:3b" 或其他

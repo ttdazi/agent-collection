@@ -45,13 +45,25 @@
             font-weight: bold;
             color: #333;
         }
-        .model-selector select {
+        .model-selector select,
+        .model-selector input {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 16px;
             background: white;
+            margin-bottom: 10px;
+        }
+        .model-selector input[type="text"] {
+            font-family: monospace;
+        }
+        .model-option {
+            margin-top: 10px;
+            display: none;
+        }
+        .model-option.show {
+            display: block;
         }
         .joke-box {
             background: #f8f9fa;
@@ -125,11 +137,28 @@
         <h1>😄 笑话Agent</h1>
         
         <div class="model-selector">
-            <label>选择模型：</label>
+            <label>选择模型类型：</label>
             <select id="modelSelect">
                 <option value="ollama">Ollama (本地免费)</option>
                 <option value="gemini">Google Gemini (免费额度)</option>
             </select>
+            
+            <!-- Ollama模型选择 -->
+            <div class="model-option" id="ollamaOption">
+                <label>选择本地模型：</label>
+                <select id="ollamaModelSelect">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+            
+            <!-- Gemini API Key输入 -->
+            <div class="model-option" id="geminiOption">
+                <label>输入API Key：</label>
+                <input type="text" id="geminiApiKey" placeholder="请输入Google Gemini API Key" />
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    获取API Key: <a href="https://aistudio.google.com/" target="_blank">https://aistudio.google.com/</a>
+                </small>
+            </div>
         </div>
         
         <div class="joke-box">
@@ -142,6 +171,51 @@
 
     <script>
         let currentModel = 'ollama';
+        let ollamaModels = [];
+        
+        // 显示/隐藏模型选项
+        function updateModelOptions() {
+            const modelType = document.getElementById('modelSelect').value;
+            const ollamaOption = document.getElementById('ollamaOption');
+            const geminiOption = document.getElementById('geminiOption');
+            
+            if (modelType === 'ollama') {
+                ollamaOption.classList.add('show');
+                geminiOption.classList.remove('show');
+            } else if (modelType === 'gemini') {
+                ollamaOption.classList.remove('show');
+                geminiOption.classList.add('show');
+            } else {
+                ollamaOption.classList.remove('show');
+                geminiOption.classList.remove('show');
+            }
+        }
+        
+        // 加载Ollama模型列表
+        async function loadOllamaModels() {
+            try {
+                const res = await fetch('/api/ollama/models');
+                const data = await res.json();
+                if (data.success && data.models.length > 0) {
+                    ollamaModels = data.models;
+                    const select = document.getElementById('ollamaModelSelect');
+                    select.innerHTML = '';
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        select.appendChild(option);
+                    });
+                } else {
+                    document.getElementById('ollamaModelSelect').innerHTML = 
+                        '<option value="">无法加载模型列表</option>';
+                }
+            } catch (e) {
+                console.error('加载Ollama模型失败:', e);
+                document.getElementById('ollamaModelSelect').innerHTML = 
+                    '<option value="">加载失败</option>';
+            }
+        }
         
         // 加载当前配置
         async function loadConfig() {
@@ -151,40 +225,100 @@
                 currentModel = data.model_type;
                 document.getElementById('modelSelect').value = currentModel;
                 document.getElementById('currentModel').textContent = currentModel;
+                
+                // 先更新UI显示
+                updateModelOptions();
+                
+                // 加载模型特定配置
+                if (currentModel === 'ollama' && data.current_model_config) {
+                    const modelName = data.current_model_config.model;
+                    // 先加载模型列表
+                    await loadOllamaModels();
+                    // 然后设置选中的模型
+                    if (modelName) {
+                        const select = document.getElementById('ollamaModelSelect');
+                        if (select) {
+                            select.value = modelName;
+                        }
+                    }
+                } else if (currentModel === 'gemini' && data.current_model_config) {
+                    const apiKey = data.current_model_config.api_key;
+                    if (apiKey) {
+                        document.getElementById('geminiApiKey').value = apiKey;
+                    }
+                }
             } catch (e) {
                 console.error('加载配置失败:', e);
                 document.getElementById('currentModel').textContent = '加载失败';
             }
         }
         
-        // 切换模型
+        // 切换模型类型
         document.getElementById('modelSelect').addEventListener('change', async (e) => {
-            const newModel = e.target.value;
-            const selectElement = e.target;
+            const newModelType = e.target.value;
+            updateModelOptions();
+            
+            // 如果是Ollama且模型列表未加载，则加载
+            if (newModelType === 'ollama' && ollamaModels.length === 0) {
+                await loadOllamaModels();
+            }
+            
+            // 切换模型类型时自动保存配置
+            await saveConfig();
+        });
+        
+        // 保存配置
+        async function saveConfig() {
+            const modelType = document.getElementById('modelSelect').value;
+            const selectElement = document.getElementById('modelSelect');
             
             // 禁用选择框
             selectElement.disabled = true;
             
             try {
+                const configData = { model_type: modelType };
+                
+                // 根据模型类型添加特定配置
+                if (modelType === 'ollama') {
+                    const modelName = document.getElementById('ollamaModelSelect').value;
+                    if (modelName) {
+                        configData.model = modelName;
+                    }
+                } else if (modelType === 'gemini') {
+                    const apiKey = document.getElementById('geminiApiKey').value.trim();
+                    if (apiKey) {
+                        configData.api_key = apiKey;
+                    }
+                }
+                
                 const res = await fetch('/api/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model_type: newModel })
+                    body: JSON.stringify(configData)
                 });
                 const data = await res.json();
                 if (data.success) {
-                    currentModel = newModel;
-                    document.getElementById('currentModel').textContent = newModel;
-                    alert(`已切换到 ${newModel}`);
+                    currentModel = modelType;
+                    document.getElementById('currentModel').textContent = modelType;
+                    alert(`配置已更新: ${modelType}`);
                 } else {
-                    alert(`切换失败: ${data.error}`);
-                    selectElement.value = currentModel; // 恢复原值
+                    alert(`更新失败: ${data.error}`);
                 }
             } catch (e) {
-                alert(`切换失败: ${e.message}`);
-                selectElement.value = currentModel;
+                alert(`更新失败: ${e.message}`);
             } finally {
                 selectElement.disabled = false;
+            }
+        }
+        
+        // Ollama模型选择变化时自动保存
+        document.getElementById('ollamaModelSelect').addEventListener('change', saveConfig);
+        
+        // Gemini API Key输入框失去焦点时保存
+        document.getElementById('geminiApiKey').addEventListener('blur', () => {
+            const apiKey = document.getElementById('geminiApiKey').value.trim();
+            if (apiKey && currentModel === 'gemini') {
+                saveConfig();
             }
         });
         
@@ -221,8 +355,12 @@
         }
         
         // 初始化
-        window.addEventListener('load', () => {
-            loadConfig();
+        window.addEventListener('load', async () => {
+            await loadConfig();
+            // 如果当前是Ollama，加载模型列表
+            if (currentModel === 'ollama') {
+                await loadOllamaModels();
+            }
         });
     </script>
 </body>

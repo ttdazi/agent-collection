@@ -2,6 +2,7 @@
 笑话相关工具 - 可以轻松添加新工具
 """
 from langchain.tools import Tool
+from core.tool_registry import tool_registry
 import random
 
 # 笑话数据库
@@ -33,7 +34,7 @@ def search_joke_by_keyword(keyword: str) -> str:
 
 def get_joke_tools():
     """获取所有笑话相关工具"""
-    return [
+    tools = [
         Tool(
             name="GetRandomJoke",
             func=get_random_joke,
@@ -45,4 +46,7 @@ def get_joke_tools():
             description="根据关键词搜索笑话。当用户指定了特定主题时使用此工具。Action Input应该是单个关键词，如'程序员'、'Python'、'bug'等。"
         ),
     ]
+    # 自动注册到工具注册表
+    tool_registry.register_tools(tools, group="joke")
+    return tools
 
