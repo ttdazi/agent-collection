@@ -5,12 +5,12 @@ import os
 from typing import Literal
 
 # 模型类型
-ModelType = Literal["ollama", "gemini"]
+ModelType = Literal["ollama", "gemini", "deepseek"]
 
 # 默认配置
 DEFAULT_CONFIG = {
     # 当前使用的模型类型
-    "model_type": os.getenv("MODEL_TYPE", "ollama"),  # 可以改为 "gemini"
+    "model_type": os.getenv("MODEL_TYPE", "ollama"),  # 可以改为 "gemini", "deepseek"
     
     # 默认Agent类型
     "default_agent": os.getenv("DEFAULT_AGENT", "joke"),  # 可以改为其他Agent类型
@@ -24,8 +24,16 @@ DEFAULT_CONFIG = {
     
     # Google Gemini配置
     "gemini": {
-        "model": "gemini-pro",  # 或 "gemini-1.5-flash"
+        "model": "gemini-2.0-flash-exp",  # 或 "gemini-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"
         "api_key": os.getenv("GOOGLE_API_KEY", ""),
+        "temperature": 0.7,
+    },
+    
+    # DeepSeek配置（支持官方API和硅基流动）
+    "deepseek": {
+        "model": "deepseek-ai/DeepSeek-V3.2-Exp",  # 硅基流动模型，或 "deepseek-chat"（官方）
+        "api_key": os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("SILICONFLOW_API_KEY", ""),
+        "base_url": "https://api.siliconflow.cn/v1",  # 硅基流动API，或 "https://api.deepseek.com/v1"（官方）
         "temperature": 0.7,
     },
     

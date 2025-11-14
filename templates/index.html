@@ -141,6 +141,7 @@
             <select id="modelSelect">
                 <option value="ollama">Ollama (本地免费)</option>
                 <option value="gemini">Google Gemini (免费额度)</option>
+                <option value="deepseek">DeepSeek (国内可用)</option>
             </select>
             
             <!-- Ollama模型选择 -->
@@ -157,6 +158,20 @@
                 <input type="text" id="geminiApiKey" placeholder="请输入Google Gemini API Key" />
                 <small style="color: #666; display: block; margin-top: 5px;">
                     获取API Key: <a href="https://aistudio.google.com/" target="_blank">https://aistudio.google.com/</a>
+                </small>
+            </div>
+            
+            <!-- DeepSeek API Key输入 -->
+            <div class="model-option" id="deepseekOption">
+                <label>输入API Key：</label>
+                <input type="text" id="deepseekApiKey" placeholder="请输入DeepSeek或硅基流动API Key" />
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    获取API Key: 
+                    <a href="https://siliconflow.cn/" target="_blank">硅基流动</a> | 
+                    <a href="https://platform.deepseek.com/" target="_blank">DeepSeek官方</a>
+                </small>
+                <small style="color: #666; display: block; margin-top: 3px; font-size: 0.85em;">
+                    当前使用: 硅基流动 (deepseek-ai/DeepSeek-V3.2-Exp)
                 </small>
             </div>
         </div>
@@ -178,16 +193,20 @@
             const modelType = document.getElementById('modelSelect').value;
             const ollamaOption = document.getElementById('ollamaOption');
             const geminiOption = document.getElementById('geminiOption');
+            const deepseekOption = document.getElementById('deepseekOption');
             
+            // 隐藏所有选项
+            ollamaOption.classList.remove('show');
+            geminiOption.classList.remove('show');
+            deepseekOption.classList.remove('show');
+            
+            // 显示对应选项
             if (modelType === 'ollama') {
                 ollamaOption.classList.add('show');
-                geminiOption.classList.remove('show');
             } else if (modelType === 'gemini') {
-                ollamaOption.classList.remove('show');
                 geminiOption.classList.add('show');
-            } else {
-                ollamaOption.classList.remove('show');
-                geminiOption.classList.remove('show');
+            } else if (modelType === 'deepseek') {
+                deepseekOption.classList.add('show');
             }
         }
         
@@ -246,6 +265,11 @@
                     if (apiKey) {
                         document.getElementById('geminiApiKey').value = apiKey;
                     }
+                } else if (currentModel === 'deepseek' && data.current_model_config) {
+                    const apiKey = data.current_model_config.api_key;
+                    if (apiKey) {
+                        document.getElementById('deepseekApiKey').value = apiKey;
+                    }
                 }
             } catch (e) {
                 console.error('加载配置失败:', e);
@@ -289,6 +313,11 @@
                     if (apiKey) {
                         configData.api_key = apiKey;
                     }
+                } else if (modelType === 'deepseek') {
+                    const apiKey = document.getElementById('deepseekApiKey').value.trim();
+                    if (apiKey) {
+                        configData.api_key = apiKey;
+                    }
                 }
                 
                 const res = await fetch('/api/config', {
@@ -300,9 +329,14 @@
                 if (data.success) {
                     currentModel = modelType;
                     document.getElementById('currentModel').textContent = modelType;
-                    alert(`配置已更新: ${modelType}`);
+                    // 如果有警告信息，显示警告而不是成功提示
+                    if (data.warning) {
+                        alert(`⚠️ ${data.warning}`);
+                    } else {
+                        alert(`✅ 配置已更新: ${modelType}`);
+                    }
                 } else {
-                    alert(`更新失败: ${data.error}`);
+                    alert(`❌ 更新失败: ${data.error}`);
                 }
             } catch (e) {
                 alert(`更新失败: ${e.message}`);
@@ -315,11 +349,43 @@
         document.getElementById('ollamaModelSelect').addEventListener('change', saveConfig);
         
         // Gemini API Key输入框失去焦点时保存
-        document.getElementById('geminiApiKey').addEventListener('blur', () => {
+        document.getElementById('geminiApiKey').addEventListener('blur', async () => {
             const apiKey = document.getElementById('geminiApiKey').value.trim();
-            if (apiKey && currentModel === 'gemini') {
-                saveConfig();
+            if (!apiKey) return; // 如果为空，不保存
+            
+            // 如果当前模型类型不是gemini，提示用户
+            const currentModelType = document.getElementById('modelSelect').value;
+            if (currentModelType !== 'gemini') {
+                if (confirm('当前模型类型不是Gemini，是否切换到Gemini并保存API Key？')) {
+                    document.getElementById('modelSelect').value = 'gemini';
+                    updateModelOptions();
+                    await saveConfig();
+                }
+                return;
             }
+            
+            // 如果当前是gemini，直接保存
+            await saveConfig();
+        });
+        
+        // DeepSeek API Key输入框失去焦点时保存
+        document.getElementById('deepseekApiKey').addEventListener('blur', async () => {
+            const apiKey = document.getElementById('deepseekApiKey').value.trim();
+            if (!apiKey) return; // 如果为空，不保存
+            
+            // 如果当前模型类型不是deepseek，提示用户
+            const currentModelType = document.getElementById('modelSelect').value;
+            if (currentModelType !== 'deepseek') {
+                if (confirm('当前模型类型不是DeepSeek，是否切换到DeepSeek并保存API Key？')) {
+                    document.getElementById('modelSelect').value = 'deepseek';
+                    updateModelOptions();
+                    await saveConfig();
+                }
+                return;
+            }
+            
+            // 如果当前是deepseek，直接保存
+            await saveConfig();
         });
         
         // 获取笑话
@@ -332,25 +398,53 @@
             jokeText.className = 'joke-text loading';
             
             try {
+                // 创建带超时的fetch请求（30秒超时）
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                
                 const res = await fetch('/api/agent/invoke', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         agent_name: 'joke',
                         input: '讲个笑话' 
-                    })
+                    }),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
                 const data = await res.json();
                 
                 if (data.success) {
                     jokeText.textContent = data.output;
                     jokeText.className = 'joke-text fade-in';
                 } else {
-                    jokeText.textContent = `错误: ${data.error || data.output}`;
+                    let errorMsg = data.error || data.output || '未知错误';
+                    // 提供更友好的错误提示
+                    if (errorMsg.includes('余额不足') || errorMsg.includes('Insufficient Balance') || errorMsg.includes('402')) {
+                        errorMsg = '💰 账户余额不足，请充值后重试。';
+                    } else if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('Invalid API key')) {
+                        errorMsg = '🔑 API Key无效或已过期，请检查API Key是否正确。';
+                    } else if (errorMsg.includes('timeout') || errorMsg.includes('超时')) {
+                        errorMsg = '⏱️ 请求超时，请检查网络连接。如果使用Gemini，可能需要VPN。';
+                    } else if (errorMsg.includes('API key') || errorMsg.includes('api_key')) {
+                        errorMsg = '🔑 API Key错误，请检查配置是否正确。';
+                    } else if (errorMsg.includes('网络') || errorMsg.includes('connection')) {
+                        errorMsg = '🌐 网络连接失败，请检查网络或VPN设置。';
+                    } else if (errorMsg.includes('rate limit') || errorMsg.includes('429')) {
+                        errorMsg = '🚦 请求频率过高，请稍后再试。';
+                    }
+                    jokeText.textContent = `错误: ${errorMsg}`;
                     jokeText.className = 'joke-text';
                 }
             } catch (e) {
-                jokeText.textContent = `网络错误: ${e.message}`;
+                let errorMsg = e.message;
+                if (e.name === 'AbortError') {
+                    errorMsg = '⏱️ 请求超时（30秒），请检查网络连接。如果使用Gemini，可能需要VPN。';
+                } else if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+                    errorMsg = '🌐 网络连接失败，请检查网络或VPN设置。';
+                }
+                jokeText.textContent = `网络错误: ${errorMsg}`;
                 jokeText.className = 'joke-text';
             } finally {
                 btn.disabled = false;

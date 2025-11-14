@@ -21,9 +21,11 @@ class AgentFactory:
         if cls._providers is None:
             from providers.ollama_provider import OllamaProvider
             from providers.gemini_provider import GeminiProvider
+            from providers.deepseek_provider import DeepSeekProvider
             cls._providers = {
                 "ollama": OllamaProvider(),
                 "gemini": GeminiProvider(),
+                "deepseek": DeepSeekProvider(),
             }
         return cls._providers
     

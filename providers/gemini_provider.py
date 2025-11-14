@@ -53,6 +53,8 @@ class GeminiProvider(ModelProvider):
             model=config.get("model", "gemini-pro"),
             google_api_key=api_key,
             temperature=config.get("temperature", 0.7),
+            timeout=30,  # 30秒超时
+            max_retries=2,  # 最多重试2次
         )
     
     def validate_config(self, config: Dict[str, Any]) -> bool:
