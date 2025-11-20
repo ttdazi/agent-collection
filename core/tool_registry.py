@@ -1,15 +1,15 @@
 """
 工具注册表 - 管理所有可用工具
 """
-from typing import Dict, List, Optional
-from langchain_core.tools import Tool
+from typing import Dict, List, Optional, Union
+from langchain_core.tools import BaseTool, Tool
 
 
 class ToolRegistry:
     """工具注册表 - 单例模式"""
     
     _instance = None
-    _tools: Dict[str, Tool] = {}
+    _tools: Dict[str, BaseTool] = {}
     _tool_groups: Dict[str, List[str]] = {}
     
     def __new__(cls):
@@ -17,10 +17,10 @@ class ToolRegistry:
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def register_tool(self, tool: Tool, group: str = "default") -> None:
+    def register_tool(self, tool: BaseTool, group: str = "default") -> None:
         """注册工具"""
-        if not isinstance(tool, Tool):
-            raise ValueError(f"工具必须是Tool实例，当前类型: {type(tool)}")
+        if not isinstance(tool, BaseTool):
+            raise ValueError(f"工具必须是BaseTool实例，当前类型: {type(tool)}")
         
         # 如果工具已存在且在同一组，跳过注册
         if tool.name in self._tools:
@@ -36,16 +36,16 @@ class ToolRegistry:
         if tool.name not in self._tool_groups[group]:
             self._tool_groups[group].append(tool.name)
     
-    def register_tools(self, tools: List[Tool], group: str = "default") -> None:
+    def register_tools(self, tools: List[BaseTool], group: str = "default") -> None:
         """批量注册工具"""
         for tool in tools:
             self.register_tool(tool, group)
     
-    def get_tool(self, name: str) -> Optional[Tool]:
+    def get_tool(self, name: str) -> Optional[BaseTool]:
         """根据名称获取工具"""
         return self._tools.get(name)
     
-    def get_tools(self, names: List[str] = None, group: str = None) -> List[Tool]:
+    def get_tools(self, names: List[str] = None, group: str = None) -> List[BaseTool]:
         """获取工具列表"""
         if names:
             return [self._tools[name] for name in names if name in self._tools]

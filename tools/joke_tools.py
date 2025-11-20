@@ -1,9 +1,10 @@
 """
 笑话相关工具 - 可以轻松添加新工具
 """
-from langchain_core.tools import Tool
+from langchain_core.tools import StructuredTool
 from core.tool_registry import tool_registry
 import random
+from typing import Optional
 
 # 笑话数据库
 JOKES_DB = [
@@ -17,12 +18,16 @@ JOKES_DB = [
     "为什么程序员不喜欢自然？因为那里有太多bug！",
 ]
 
-def get_random_joke(query: str = "") -> str:
+def get_random_joke() -> str:
     """获取随机笑话"""
     return random.choice(JOKES_DB)
 
 def search_joke_by_keyword(keyword: str) -> str:
-    """根据关键词搜索笑话"""
+    """根据关键词搜索笑话
+    
+    Args:
+        keyword: 搜索关键词，如'程序员'、'Python'、'bug'等
+    """
     keyword_lower = keyword.lower()
     matching_jokes = [
         joke for joke in JOKES_DB 
@@ -35,28 +40,22 @@ def search_joke_by_keyword(keyword: str) -> str:
 def get_joke_tools():
     """获取所有笑话相关工具"""
     tools = [
-        Tool(
-            name="GetRandomJoke",
+        StructuredTool.from_function(
             func=get_random_joke,
+            name="GetRandomJoke",
             description=(
                 "⚠️ 重要：当用户要求讲笑话时，你必须使用此工具来获取笑话，不能自己编造。\n"
                 "获取一个随机笑话。当用户要求讲笑话时使用此工具。\n"
-                "使用格式：\n"
-                "Action: GetRandomJoke\n"
-                "Action Input: joke\n"
-                "注意：Action Input可以是任意字符串，如'joke'、'ok'等。"
+                "此工具不需要任何参数，直接调用即可。"
             )
         ),
-        Tool(
-            name="SearchJoke",
+        StructuredTool.from_function(
             func=search_joke_by_keyword,
+            name="SearchJoke",
             description=(
                 "根据关键词搜索笑话。当用户指定了特定主题时使用此工具。\n"
-                "使用格式：\n"
-                "Action: SearchJoke\n"
-                "Action Input: [关键词]\n"
-                "示例：Action Input: 程序员\n"
-                "注意：Action Input应该是单个关键词，如'程序员'、'Python'、'bug'等。"
+                "参数：\n"
+                "- keyword: 搜索关键词，如'程序员'、'Python'、'bug'等"
             )
         ),
     ]

@@ -3,8 +3,10 @@ Agent服务层 - 处理Agent相关的业务逻辑
 """
 from typing import Dict, Any, List
 from core.agent_factory import AgentFactory
-from agents.base_agent import BaseAgent
+from agents.base.base_agent import BaseAgent
 from core.llm_logger import LLMLogger
+from agents.strategies.strategy_manager import strategy_manager
+from agents.strategies.reflection_strategy import ReflectionStrategy
 import config
 
 
@@ -13,6 +15,17 @@ class AgentService:
     
     def __init__(self):
         self._agents: Dict[str, BaseAgent] = {}
+        self._init_strategies()
+    
+    def _init_strategies(self):
+        """初始化增强策略"""
+        # 注册反思策略（优先使用enhancement配置，向后兼容reflection配置）
+        enhancement_config = config.DEFAULT_CONFIG.get("enhancement", {}).get("reflection", {})
+        reflection_config = config.DEFAULT_CONFIG.get("reflection", {})
+        # 合并配置，enhancement配置优先
+        merged_config = {**reflection_config, **enhancement_config}
+        reflection_strategy = ReflectionStrategy(merged_config)
+        strategy_manager.register_strategy("reflection", reflection_strategy)
     
     def get_agent(self, agent_name: str = None, model_type: str = None) -> BaseAgent:
         """获取Agent实例（带缓存）"""
@@ -46,8 +59,19 @@ class AgentService:
             elif not any(isinstance(cb, LLMLogger) for cb in callbacks):
                 callbacks.append(LLMLogger())
             
-            result = agent.invoke({"input": user_input}, config={"callbacks": callbacks})
-            output = result.get("output", result if isinstance(result, str) else str(result))
+            # 使用策略管理器应用增强策略
+            input_data = {"input": user_input}
+            result = strategy_manager.apply_strategies(
+                agent=agent,
+                input_data=input_data,
+                config={"callbacks": callbacks}
+            )
+            
+            # 提取输出
+            if isinstance(result, dict):
+                output = result.get("output", result if isinstance(result, str) else str(result))
+            else:
+                output = str(result)
             
             # 确保输出是字符串
             if not isinstance(output, str):
@@ -138,8 +162,13 @@ class AgentService:
                     elif "gemini" in config.DEFAULT_CONFIG:
                         config.DEFAULT_CONFIG["gemini"]["api_key"] = config_data["api_key"]
             
-            # 清除相关缓存
-            self._clear_agent_cache(model_type, agent_name)
+            # 清除相关缓存（切换模型类型时，清除所有缓存以确保使用新配置）
+            if model_type:
+                # 如果切换了模型类型，清除所有缓存，避免使用旧的缓存
+                self._agents.clear()
+            else:
+                # 如果没有切换模型类型，只清除相关缓存
+                self._clear_agent_cache(model_type, agent_name)
             
             # 验证配置（只有在提供了model_type且配置完整时才验证）
             if model_type:
@@ -161,10 +190,19 @@ class AgentService:
                 
                 # 配置完整，尝试验证
                 try:
+                    # 明确传入model_type，确保使用正确的模型类型
                     self.get_agent(agent_name=agent_name, model_type=model_type)
                 except Exception as e:
                     # 如果验证失败，返回错误但不阻止配置保存
                     error_msg = str(e)
+                    # 改进错误信息，明确指出是哪个模型类型的问题
+                    if model_type in error_msg.lower():
+                        # 错误信息中已经包含模型类型，直接使用
+                        pass
+                    else:
+                        # 错误信息中没有模型类型，添加模型类型信息
+                        error_msg = f"{model_type} {error_msg}"
+                    
                     if "API key" in error_msg or "api_key" in error_msg.lower() or "配置无效" in error_msg:
                         return {
                             "success": True,
@@ -204,11 +242,26 @@ class AgentService:
             self._agents.clear()
             return
         
-        keys_to_remove = [
-            key for key in self._agents.keys()
-            if (agent_name and key.startswith(f"{agent_name}:")) or
-               (model_type and key.endswith(f":{model_type}"))
-        ]
+        # 缓存键格式: "{agent_name}:{model_type}"
+        keys_to_remove = []
+        for key in self._agents.keys():
+            should_remove = False
+            if agent_name and model_type:
+                # 如果同时指定了agent_name和model_type，精确匹配
+                if key == f"{agent_name}:{model_type}":
+                    should_remove = True
+            elif agent_name:
+                # 如果只指定了agent_name，清除所有该agent的缓存
+                if key.startswith(f"{agent_name}:"):
+                    should_remove = True
+            elif model_type:
+                # 如果只指定了model_type，清除所有该模型类型的缓存
+                if key.endswith(f":{model_type}"):
+                    should_remove = True
+            
+            if should_remove:
+                keys_to_remove.append(key)
+        
         for key in keys_to_remove:
             del self._agents[key]
     

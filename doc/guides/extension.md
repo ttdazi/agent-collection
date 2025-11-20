@@ -2,15 +2,15 @@
 
 本指南介绍如何扩展系统，添加新的Agent、工具和模型。
 
-## 添加新Agent
+## 添加新任务Agent
 
 ### 步骤1: 创建Agent类
 
-在 `agents/` 目录创建新文件，例如 `code_agent.py`：
+在 `agents/task/` 目录创建新文件，例如 `code_agent.py`：
 
 ```python
 from langchain.agents import create_agent
-from agents.base_agent import BaseAgent
+from agents.base.base_agent import BaseAgent
 
 class CodeAgent(BaseAgent):
     """代码分析Agent"""
@@ -33,7 +33,7 @@ class CodeAgent(BaseAgent):
 在 `core/agent_factory.py` 中注册：
 
 ```python
-from agents.code_agent import CodeAgent
+from agents.task.code_agent import CodeAgent
 
 _agent_classes = {
     "joke": JokeAgent,

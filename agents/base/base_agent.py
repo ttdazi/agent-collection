@@ -2,13 +2,14 @@
 Agent基类 - 定义Agent的通用接口
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Union
-from langchain_core.tools import Tool
+from typing import Dict, Any, List
+from langchain_core.tools import BaseTool
+
 
 class BaseAgent(ABC):
     """Agent基类"""
     
-    def __init__(self, name: str, tools: List[Tool], llm, config: Dict[str, Any] = None):
+    def __init__(self, name: str, tools: List[BaseTool], llm, config: Dict[str, Any] = None):
         """
         初始化Agent
         
@@ -36,22 +37,64 @@ class BaseAgent(ABC):
         return self._agent_executor
     
     def invoke(self, input_data: Dict[str, Any], **kwargs) -> Any:
-        """调用Agent"""
+        """调用Agent（核心执行逻辑）"""
         executor = self.get_agent_executor()
-        # 新API使用messages格式
         if "input" in input_data:
             from langchain_core.messages import HumanMessage
             messages = [HumanMessage(content=input_data["input"])]
-            result = executor.invoke({"messages": messages}, **kwargs)
+            
+            # 确保callbacks正确传递
+            # LangChain的invoke方法需要config参数包含callbacks
+            invoke_config = {}
+            if "config" in kwargs:
+                invoke_config = kwargs["config"].copy() if isinstance(kwargs["config"], dict) else {}
+            
+            # 确保callbacks在config中
+            if "callbacks" not in invoke_config and "callbacks" in kwargs:
+                invoke_config["callbacks"] = kwargs["callbacks"]
+            
+            # 设置recursion_limit以确保工具调用能够完成
+            if invoke_config:
+                if "recursion_limit" not in invoke_config:
+                    invoke_config["recursion_limit"] = 20
+            else:
+                invoke_config = {"recursion_limit": 20}
+            
+            result = executor.invoke({"messages": messages}, config=invoke_config)
             
             # 提取最后一条消息的内容
             output_text = None
             if "messages" in result and result["messages"]:
-                last_message = result["messages"][-1]
-                if hasattr(last_message, "content"):
-                    output_text = last_message.content
-                elif hasattr(last_message, "text"):
-                    output_text = last_message.text
+                # 查找最后一条AIMessage（没有tool_calls的，表示最终答案）
+                messages_list = result["messages"]
+                last_ai_message = None
+                
+                # 从后往前查找最后一条AIMessage
+                for msg in reversed(messages_list):
+                    from langchain_core.messages import AIMessage
+                    if isinstance(msg, AIMessage):
+                        # 如果这条AIMessage没有tool_calls，说明是最终答案
+                        if not (hasattr(msg, 'tool_calls') and msg.tool_calls):
+                            last_ai_message = msg
+                            break
+                        # 如果有tool_calls，继续查找下一条
+                
+                # 如果没找到没有tool_calls的AIMessage，使用最后一条AIMessage
+                if last_ai_message is None:
+                    for msg in reversed(messages_list):
+                        from langchain_core.messages import AIMessage
+                        if isinstance(msg, AIMessage):
+                            last_ai_message = msg
+                            break
+                
+                # 如果还是没找到，使用最后一条消息
+                if last_ai_message is None:
+                    last_ai_message = messages_list[-1]
+                
+                if hasattr(last_ai_message, "content"):
+                    output_text = last_ai_message.content
+                elif hasattr(last_ai_message, "text"):
+                    output_text = last_ai_message.text
             
             # 如果输出是ReAct格式，提取最终答案
             if output_text:

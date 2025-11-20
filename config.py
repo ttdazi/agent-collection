@@ -49,6 +49,23 @@ DEFAULT_CONFIG = {
         "llm_console_output": False,  # 是否在控制台显示LLM详细日志（False=只保存到文件）
         "llm_log_file": "logs/llm_interactions.log",  # LLM交互日志文件路径
         "log_level": "INFO",  # 日志级别：DEBUG, INFO, WARNING, ERROR
+    },
+    
+    # 反思机制配置（向后兼容）
+    "reflection": {
+        "enable": False,  # 是否启用反思机制
+        "max_iterations": 2,  # 最大反思迭代次数
+        "log_reflection": True,  # 是否记录反思过程
+    },
+    
+    # 增强策略配置
+    "enhancement": {
+        "strategies": ["reflection"],  # 启用的策略列表（按顺序应用）
+        "reflection": {
+            "enable": False,  # 是否启用反思策略
+            "max_iterations": 2,  # 最大反思迭代次数
+            "log_reflection": True,  # 是否记录反思过程
+        }
     }
 }
 
