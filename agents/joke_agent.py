@@ -2,7 +2,7 @@
 笑话Agent - 专门用于讲笑话的Agent
 """
 from langchain.agents import create_agent
-from agents.base.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 
 class JokeAgent(BaseAgent):

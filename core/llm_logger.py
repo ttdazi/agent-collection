@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import sys
 import os
 from datetime import datetime
-import config
+from configs import config
 import re
 
 class LLMLogger(BaseCallbackHandler):

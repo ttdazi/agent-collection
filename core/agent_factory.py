@@ -3,17 +3,21 @@ Agent工厂 - 创建不同类型的Agent
 """
 from core.agent_registry import agent_registry, AgentDefinition
 from core.tool_registry import tool_registry
-from agents.base.base_agent import BaseAgent
-from agents.task.joke_agent import JokeAgent
+from agents.base_agent import BaseAgent
+from agents.joke_agent import JokeAgent
+from agents.code_agent import CodeAgent
 from typing import Dict, Any, List
-import config
+from configs import config
 
 
 class AgentFactory:
     """Agent工厂类"""
     
     _providers = None
-    _agent_classes = {"joke": JokeAgent}
+    _agent_classes = {
+        "joke": JokeAgent,
+        "code": CodeAgent
+    }
     
     @classmethod
     def _get_providers(cls):

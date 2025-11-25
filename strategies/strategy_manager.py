@@ -2,10 +2,9 @@
 策略管理器 - 管理增强策略的注册和应用
 """
 from typing import Dict, List, Optional, Any
-from agents.strategies.base_strategy import EnhancementStrategy
-from agents.base.base_agent import BaseAgent
-import config
-
+from strategies.base_strategy import EnhancementStrategy
+from agents.base_agent import BaseAgent
+from configs import config
 
 class StrategyManager:
     """策略管理器 - 单例模式"""
@@ -36,25 +35,31 @@ class StrategyManager:
         """
         按顺序应用所有启用的策略
         
-        Args:
-            agent: Agent实例
-            input_data: 输入数据
-            **kwargs: 其他参数
-        
-        Returns:
-            增强后的执行结果
+        支持按Agent配置策略，优先级：
+        1. Agent特定配置 (config.agents[agent_name].strategies)
+        2. 全局增强配置 (config.enhancement.strategies)
         """
-        # 获取启用的策略列表（从配置中）
-        enhancement_config = config.DEFAULT_CONFIG.get("enhancement", {})
-        enabled_strategies = enhancement_config.get("strategies", [])
+        # 获取Agent名称
+        agent_name = getattr(agent, "name", "unknown")
         
-        # 向后兼容：如果没有配置strategies，检查reflection配置
-        if not enabled_strategies:
-            reflection_config = config.DEFAULT_CONFIG.get("reflection", {})
-            if reflection_config.get("enable", False):
-                enabled_strategies = ["reflection"]
+        # 1. 尝试获取Agent特定策略配置
+        agent_strategies = []
+        if hasattr(config, "DEFAULT_CONFIG") and "agents" in config.DEFAULT_CONFIG:
+            agent_config = config.DEFAULT_CONFIG["agents"].get(agent_name, {})
+            agent_strategies = agent_config.get("strategies", [])
+            
+        # 2. 如果没有Agent特定配置，使用全局配置
+        if not agent_strategies:
+            enhancement_config = config.DEFAULT_CONFIG.get("enhancement", {})
+            agent_strategies = enhancement_config.get("strategies", [])
+            
+            # 向后兼容逻辑
+            if not agent_strategies:
+                reflection_config = config.DEFAULT_CONFIG.get("reflection", {})
+                if reflection_config.get("enable", False):
+                    agent_strategies = ["reflection"]
         
-        if not enabled_strategies:
+        if not agent_strategies:
             # 如果没有配置策略，直接执行Agent
             return agent.invoke(input_data, **kwargs)
         
@@ -62,7 +67,7 @@ class StrategyManager:
         result = input_data
         strategy_applied = False
         
-        for strategy_name in enabled_strategies:
+        for strategy_name in agent_strategies:
             strategy = self.get_strategy(strategy_name)
             if strategy and strategy.is_enabled():
                 try:
@@ -70,7 +75,6 @@ class StrategyManager:
                     strategy_applied = True
                 except Exception as e:
                     print(f"⚠️ 策略 '{strategy_name}' 执行出错: {e}")
-                    # 如果策略执行失败，继续使用之前的结果
                     continue
         
         # 如果没有任何策略被应用，直接执行Agent
@@ -86,4 +90,3 @@ class StrategyManager:
 
 # 全局策略管理器实例
 strategy_manager = StrategyManager()
-

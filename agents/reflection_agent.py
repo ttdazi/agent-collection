@@ -5,7 +5,7 @@
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import Tool
-from agents.base.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 
 class ReflectionAgent(BaseAgent):

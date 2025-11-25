@@ -3,7 +3,7 @@
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from agents.base.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 
 class EnhancementStrategy(ABC):

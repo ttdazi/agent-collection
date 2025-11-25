@@ -66,6 +66,18 @@ DEFAULT_CONFIG = {
             "max_iterations": 2,  # 最大反思迭代次数
             "log_reflection": True,  # 是否记录反思过程
         }
+    },
+    
+    # Agent特定配置（支持按Agent配置策略）
+    "agents": {
+        "joke": {
+            "strategies": [],  # 笑话Agent不需要策略
+            "description": "专门用于讲笑话的Agent"
+        },
+        "code": {
+            "strategies": ["reflection"],  # 代码Agent需要反思
+            "description": "代码分析Agent"
+        }
     }
 }
 

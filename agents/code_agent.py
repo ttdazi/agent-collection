@@ -3,7 +3,7 @@
 这是一个示例，展示如何扩展系统添加新的Agent类型
 """
 from langchain.agents import create_agent
-from agents.base.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 
 class CodeAgent(BaseAgent):

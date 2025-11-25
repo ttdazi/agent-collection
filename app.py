@@ -14,7 +14,7 @@ from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from core.agent_service import agent_service
 from core.agent_factory import AgentFactory
-import config
+from configs import config
 
 app = Flask(__name__)
 CORS(app)

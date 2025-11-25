@@ -3,11 +3,11 @@ Agent服务层 - 处理Agent相关的业务逻辑
 """
 from typing import Dict, Any, List
 from core.agent_factory import AgentFactory
-from agents.base.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 from core.llm_logger import LLMLogger
-from agents.strategies.strategy_manager import strategy_manager
-from agents.strategies.reflection_strategy import ReflectionStrategy
-import config
+from strategies.strategy_manager import strategy_manager
+from strategies.reflection_strategy import ReflectionStrategy
+from configs import config
 
 
 class AgentService:
